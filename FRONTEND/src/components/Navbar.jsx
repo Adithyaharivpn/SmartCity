@@ -3,12 +3,16 @@ import { AppBar, Toolbar, Button, Typography, Box, Menu, MenuItem, IconButton, A
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import RegistrationModal from './RegistrationModal';
 import WasteModal from './WasteModal';
+import WaterModal from './WaterModal';
+import GrievanceModal from './GrievanceModal';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [showReg, setShowReg] = React.useState(false);
   const [showWaste, setShowWaste] = React.useState(false);
+  const [showWater, setShowWater] = React.useState(false);
+  const [showGrievance, setShowGrievance] = React.useState(false);
   const open = Boolean(anchorEl);
   const user = typeof window !== 'undefined' && localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
 
@@ -63,6 +67,8 @@ const Navbar = () => {
             <>
               <Button color="inherit" component={RouterLink} to="/home">Home</Button>
               <Button color="inherit" onClick={() => setShowWaste(true)}>Request Waste</Button>
+              <Button color="inherit" onClick={() => setShowWater(true)}>Report Water Issue</Button>
+              <Button color="inherit" onClick={() => setShowGrievance(true)}>Grievance</Button>
               <Button color="inherit" onClick={() => setShowReg(true)}>Register Service</Button>
               <Button color="inherit" component={RouterLink} to="/user">My Dashboard</Button>
               {user.role === 'admin' && <Button color="inherit" component={RouterLink} to="/admin">Admin</Button>}
@@ -76,6 +82,8 @@ const Navbar = () => {
 
               <RegistrationModal open={showReg} onClose={() => setShowReg(false)} onSuccess={() => { /* optional refresh */ }} />
               <WasteModal open={showWaste} onClose={() => setShowWaste(false)} onSuccess={() => { /* optional refresh */ }} />
+              <WaterModal open={showWater} onClose={() => setShowWater(false)} onSuccess={() => { /* optional refresh */ }} />
+              <GrievanceModal open={showGrievance} onClose={() => setShowGrievance(false)} onSuccess={() => { /* optional refresh */ }} />
             </>
           )}
 

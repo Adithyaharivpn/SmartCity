@@ -34,7 +34,7 @@ import {
 } from "@mui/icons-material";
 import Navbar from "./Navbar";
 
-// 🎨 Same theme as other pages
+// 🎨 Same theme as other pagesss
 const theme = createTheme({
   palette: {
     mode: "light",
@@ -70,6 +70,8 @@ const AdminDashboard = () => {
         {[
           { key: 'overview', text: "Dashboard Overview", icon: <Dashboard /> },
           { key: 'waste', text: "Waste Management", icon: <DeleteOutline /> },
+          { key: 'water', text: "Water Issues", icon: <Opacity /> },
+          { key: 'grievances', text: "Grievances", icon: <ReportProblem /> },
           { key: 'registrations', text: "Registrations", icon: <People /> },
           { key: 'logs', text: "Activity Logs", icon: <ReportProblem /> },
           { key: 'settings', text: "Settings", icon: <Settings /> },
@@ -88,6 +90,8 @@ const AdminDashboard = () => {
   React.useEffect(() => {
     // fetch data when tab changes
     if (tab === 'waste') fetchWastes();
+    if (tab === 'water') fetchWaters();
+    if (tab === 'grievances') fetchGrievances();
     if (tab === 'registrations') fetchRegistrations();
     if (tab === 'logs') fetchLogs();
     if (tab === 'overview') fetchOverview();
@@ -152,6 +156,84 @@ const AdminDashboard = () => {
       console.error('fetch wastes', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Water
+  const [waters, setWaters] = React.useState([]);
+  const fetchWaters = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://localhost:3000/api/water', { headers: getAuthHeaders() });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
+        throw new Error('Failed to fetch water requests');
+      }
+      const data = await res.json();
+      setWaters(data);
+    } catch (err) {
+      console.error('fetch waters', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateWaterStatus = async (id, status) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/water/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
+      if (!res.ok) return alert('Failed to update water request. Admin access required.');
+      fetchWaters();
+    } catch (err) {
+      console.error('update water', err);
+    }
+  };
+
+  const deleteWater = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/water/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) return alert('Failed to delete. Admin access required.');
+      fetchWaters();
+    } catch (err) {
+      console.error('delete water', err);
+    }
+  };
+
+  // Grievances
+  const [grievances, setGrievances] = React.useState([]);
+  const fetchGrievances = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://localhost:3000/api/grievance', { headers: getAuthHeaders() });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
+        throw new Error('Failed to fetch grievances');
+      }
+      const data = await res.json();
+      setGrievances(data);
+    } catch (err) {
+      console.error('fetch grievances', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateGrievanceStatus = async (id, status) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/grievance/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
+      if (!res.ok) return alert('Failed to update grievance. Admin access required.');
+      fetchGrievances();
+    } catch (err) {
+      console.error('update grievance', err);
+    }
+  };
+
+  const deleteGrievance = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/grievance/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) return alert('Failed to delete grievance. Admin access required.');
+      fetchGrievances();
+    } catch (err) {
+      console.error('delete grievance', err);
     }
   };
 
@@ -236,7 +318,7 @@ const AdminDashboard = () => {
 
       <Box sx={{ display: "flex" }}>
         {/* 🔹 AppBar */}
-        <AppBar
+        {/* <AppBar
           position="fixed"
           sx={{
             width: { sm: `calc(100% - ${drawerWidth}px)` },
@@ -257,7 +339,7 @@ const AdminDashboard = () => {
               Smart City Admin Dashboard
             </Typography>
           </Toolbar>
-        </AppBar>
+        </AppBar> */}
 
         {/* 🔹 Sidebar Drawer */}
         <Box
@@ -318,7 +400,7 @@ const AdminDashboard = () => {
                   { title: 'Registered Users', value: overview.userCount || 0, color: '#8bc34a', icon: <People /> , link: 'users'},
                   { title: 'Recent Logs', value: overview.recentLogs?.length || logs.length || 0, color: '#ff7043', icon: <ReportProblem />, link: 'logs'},
                 ].map((stat, index) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
+                  <Grid item xs={12} sm={6} md={3} key={index}>
                     <Paper elevation={4} sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Avatar sx={{ bgcolor: stat.color, width: 56, height: 56 }}>{stat.icon}</Avatar>
                       <Box sx={{ flex: 1 }}>
@@ -335,7 +417,7 @@ const AdminDashboard = () => {
               </Grid>
 
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                   <Paper elevation={3} sx={{ p: 2, borderRadius: 3 }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                       <Typography variant="h6">Recent Activity</Typography>
@@ -356,7 +438,7 @@ const AdminDashboard = () => {
                   </Paper>
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                   <Paper elevation={3} sx={{ p: 2, borderRadius: 3 }}>
                     <Typography variant="h6">Latest Submissions</Typography>
                     <Box sx={{ mt: 2 }}>
@@ -395,24 +477,78 @@ const AdminDashboard = () => {
                 {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {wastes.map(w => (
-                      <Grid size={{ xs: 12, md: 6 }} key={w._id}>
+                      <Grid item xs={12} md={6} key={w._id}>
                         <Paper sx={{ p: 2 }}>
                           <Typography variant="h6">{w.name}</Typography>
                           <Typography variant="body2" color="text.secondary">{w.address}</Typography>
-                          <Typography variant="body2" sx={{ mt: 1 }}>Contact: {w.contact}</Typography>
-                          <Typography variant="body2">Type: {w.wasteType}</Typography>
-                          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                            <Select size="small" value={w.status || 'pending'} onChange={(e) => updateWasteStatus(w._id, e.target.value)}>
-                              <MenuItem value="pending">Pending</MenuItem>
-                              <MenuItem value="scheduled">Scheduled</MenuItem>
-                              <MenuItem value="collected">Collected</MenuItem>
-                            </Select>
-                            <Button color="error" onClick={() => deleteWaste(w._id)}>Delete</Button>
+                          <Typography variant="caption">{w.wasteType} • {w.status}</Typography>
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            <Button size="small" onClick={() => updateWasteStatus(w._id, 'scheduled')}>Schedule</Button>
+                            <Button size="small" onClick={() => updateWasteStatus(w._id, 'collected')}>Mark Collected</Button>
+                            <Button size="small" color="error" onClick={() => deleteWaste(w._id)}>Delete</Button>
                           </Stack>
                         </Paper>
                       </Grid>
                     ))}
-                    {wastes.length === 0 && <Typography sx={{ p: 2 }}>No waste requests yet.</Typography>}
+                  </Grid>
+                )}
+              </Paper>
+            </>
+          )}
+
+          {tab === 'water' && (
+            <>
+              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>Water Requests</Typography>
+              <Paper sx={{ p: 2, mb: 3 }}>
+                {loading ? <Typography>Loading...</Typography> : (
+                  <Grid container spacing={2}>
+                    {waters.map(w => (
+                      <Grid item xs={12} md={6} key={w._id}>
+                        <Paper sx={{ p: 2 }}>
+                          <Typography variant="h6">{w.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">{w.address}</Typography>
+                          <Typography variant="caption">{w.issueType} • {w.status}</Typography>
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            <Button size="small" onClick={() => updateWaterStatus(w._id, 'in-progress')}>In-Progress</Button>
+                            <Button size="small" onClick={() => updateWaterStatus(w._id, 'resolved')}>Resolve</Button>
+                            <Button size="small" color="error" onClick={() => deleteWater(w._id)}>Delete</Button>
+                          </Stack>
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Paper>
+            </>
+          )}
+
+
+
+          {tab === 'grievances' && (
+            <>
+              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>Grievances</Typography>
+              <Paper sx={{ p: 2, mb: 3 }}>
+                {loading ? <Typography>Loading...</Typography> : (
+                  <Grid container spacing={2}>
+                    {grievances.map(g => (
+                      <Grid item xs={12} md={6} key={g._id}>
+                        <Paper sx={{ p: 2 }}>
+                          <Typography variant="h6">{g.subject}</Typography>
+                          <Typography variant="body2" color="text.secondary">{g.description}</Typography>
+                          <Typography variant="caption">Submitted by: {g.name} • {new Date(g.createdAt).toLocaleString()}</Typography>
+                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            <Select size="small" value={g.status || 'open'} onChange={(e) => updateGrievanceStatus(g._id, e.target.value)}>
+                              <MenuItem value="open">Open</MenuItem>
+                              <MenuItem value="in-progress">In-Progress</MenuItem>
+                              <MenuItem value="resolved">Resolved</MenuItem>
+                              <MenuItem value="closed">Closed</MenuItem>
+                            </Select>
+                            <Button color="error" onClick={() => deleteGrievance(g._id)}>Delete</Button>
+                          </Stack>
+                        </Paper>
+                      </Grid>
+                    ))}
+                    {grievances.length === 0 && <Typography sx={{ p: 2 }}>No grievances yet.</Typography>}
                   </Grid>
                 )}
               </Paper>
@@ -426,7 +562,7 @@ const AdminDashboard = () => {
                 {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {registrations.map(r => (
-                      <Grid size={{ xs: 12, md: 6 }} key={r._id}>
+                      <Grid item xs={12} md={6} key={r._id}>
                         <Paper sx={{ p: 2 }}>
                           <Typography variant="h6">{r.firstName} {r.lastName}</Typography>
                           <Typography variant="body2" color="text.secondary">{r.email} • {r.phone}</Typography>
@@ -456,7 +592,7 @@ const AdminDashboard = () => {
                 {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {logs.map(l => (
-                      <Grid size={{ xs: 12 }} key={l._id}>
+                      <Grid item xs={12} key={l._id}>
                         <Paper sx={{ p: 2 }}>
                           <Typography variant="body2">[{new Date(l.createdAt).toLocaleString()}] <strong>{l.action}</strong> {l.entityType} - {l.message}</Typography>
                         </Paper>

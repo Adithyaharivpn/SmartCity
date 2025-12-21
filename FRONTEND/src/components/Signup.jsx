@@ -73,7 +73,7 @@ const Signup = () => {
         if (user) localStorage.setItem('user', JSON.stringify(user));
         setSuccessMessage(message || 'Signup successful!');
         setErrorMessage('');
-        setTimeout(() => navigate('/home'), 700);
+        setTimeout(() => navigate(user?.role === 'admin' ? '/admin' : '/user'), 700);
       })
       .catch((error) => {
         console.error('Signup error:', error, error?.response?.data);
@@ -168,9 +168,9 @@ const Signup = () => {
 
           <Typography variant="body2" align="center" sx={{ mt: 3, color: 'text.secondary' }}>
             Already have an account?{' '}
-            <Link component={RouterLink} to="/" underline="hover" color="secondary">
+            <Link component={RouterLink} to="/l" underline="hover" color="secondary">
               Sign in
-            </Link>
+            </Link> 
           </Typography>
         </Box>
       </Box>

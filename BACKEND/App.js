@@ -15,11 +15,15 @@ const userroute = require('./route/userroute');
 const wasteroute = require('./route/wasteRoute');
 const registrationRoute = require('./route/registrationRoute');
 const logRoute = require('./route/logRoute');
+const waterRoute = require('./route/waterRoute');
+const grievanceRoute = require('./route/grievanceRoute');
 
 app.use('/api', userroute);
 app.use('/api/waste', wasteroute);
 app.use('/api/registrations', registrationRoute);
 app.use('/api/logs', logRoute);
+app.use('/api/water', waterRoute);
+app.use('/api/grievance', grievanceRoute);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Basic error handler

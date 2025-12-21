@@ -10,6 +10,8 @@ import Home from './components/Home'
 import Contact from './components/Contact'
 import Mission from './components/Mission'
 import WasteManagement from './components/WasteManagement'
+import WaterManagement from './components/WaterManagement'
+import Grievance from './components/Grievance'
 import UserDashboard from './components/UserDashboard'
 import AdminDashboard from './components/AdminDashboard'
 import Reset from './components/Reset'
@@ -30,6 +32,8 @@ function App() {
         <Route path='/mi' element={<Mission/>}></Route>
         <Route path='/user' element={<UserDashboard/>}></Route>
          <Route path='/waste' element={<WasteManagement/>}></Route>
+        <Route path='/water' element={<WaterManagement/>}></Route>
+        <Route path='/grievance' element={<Grievance/>}></Route>
           <Route path='/admin' element={<AdminDashboard/>}></Route>
          <Route path='/res' element={<Reset/>}></Route>
       </Routes>
