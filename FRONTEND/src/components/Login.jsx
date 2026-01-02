@@ -44,6 +44,7 @@ const Login = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
 
     if (!input.email || !input.password) {
       setErrorMessage('Email and password are required');
@@ -53,24 +54,29 @@ const Login = () => {
     axios
       .post('http://localhost:3000/api/', input)
       .then((response) => {
+        console.log("Login Response:", response.data); 
         const { token, user, message } = response.data;
-        // store token in localStorage or sessionStorage depending on remember
         const storage = remember ? localStorage : sessionStorage;
+        
         if (token) storage.setItem('token', token);
         if (user) storage.setItem('user', JSON.stringify(user));
 
-        setErrorMessage('');
         setSuccessMessage(message || 'Login successful!');
-        setTimeout(() => navigate('/home'), 600);
+        
+        setTimeout(() => {
+            if (user && user.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/user'); 
+            }
+        }, 600);
       })
       .catch((error) => {
-        console.error('Login error:', error, error?.response?.data);
+        console.error('Login error:', error);
         const msg =
           error?.response?.data?.message ||
-          (error?.response?.data?.errors && error.response.data.errors[0]?.msg) ||
           'Login failed. Please check your credentials.';
         setErrorMessage(msg);
-        setSuccessMessage('');
       });
   };
 
@@ -116,7 +122,6 @@ const Login = () => {
               name="email"
               value={input.email}
               onChange={inputHandler}
-              InputLabelProps={{ style: { fontSize: 14 } }}
             />
 
             <TextField
@@ -128,7 +133,6 @@ const Login = () => {
               value={input.password}
               type={showPassword ? 'text' : 'password'}
               onChange={inputHandler}
-              InputLabelProps={{ style: { fontSize: 14 } }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -173,7 +177,7 @@ const Login = () => {
 
           <Typography variant="body2" align="center" sx={{ mt: 3, color: 'text.secondary' }}>
             Don't have an account?{' '}
-            <Link component={RouterLink} to="/s" underline="hover" color="secondary">
+            <Link component={RouterLink} to="/signup" underline="hover" color="secondary">
               Create one
             </Link>
           </Typography>
@@ -184,4 +188,3 @@ const Login = () => {
 };
 
 export default Login;
-

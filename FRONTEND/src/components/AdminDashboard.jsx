@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   CssBaseline,
@@ -11,10 +11,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  AppBar,
-  Toolbar,
-  IconButton,
-  Grid,
   Paper,
   Stack,
   Select,
@@ -22,6 +18,7 @@ import {
   Button,
   Avatar,
   Divider,
+  Grid,
 } from "@mui/material";
 import {
   Dashboard,
@@ -30,11 +27,11 @@ import {
   ReportProblem,
   People,
   Settings,
-  Menu as MenuIcon,
 } from "@mui/icons-material";
+import { useNavigate } from 'react-router-dom';
 import Navbar from "./Navbar";
 
-// 🎨 Same theme as other pagesss
+// 🎨 Theme
 const theme = createTheme({
   palette: {
     mode: "light",
@@ -48,47 +45,49 @@ const theme = createTheme({
 const drawerWidth = 240;
 
 const AdminDashboard = () => {
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [tab, setTab] = React.useState('overview');
-  const [wastes, setWastes] = React.useState([]);
-  const [registrations, setRegistrations] = React.useState([]);
-  const [logs, setLogs] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [tab, setTab] = useState('overview');
+  
+  // Data States
+  const [wastes, setWastes] = useState([]);
+  const [waters, setWaters] = useState([]);
+  const [grievances, setGrievances] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
+  const [logs, setLogs] = useState([]);
+  
+  // Loading & Overview States
+  const [loading, setLoading] = useState(false);
+  const [overview, setOverview] = useState({ 
+    wasteCount: 0, 
+    registrationCount: 0, 
+    userCount: 0, 
+    recentWastes: [], 
+    recentRegs: [], 
+    recentLogs: [] 
+  });
+  const [overviewLoading, setOverviewLoading] = useState(false);
 
+  const navigate = useNavigate();
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
-  const drawer = (
-    <Box sx={{ bgcolor: "#fff", height: "100%" }}>
-      <Typography
-        variant="h5"
-        color="primary"
-        sx={{ p: 2, fontWeight: "bold", textAlign: "center" }}
-      >
-        Admin Panel
-      </Typography>
-      <List>
-        {[
-          { key: 'overview', text: "Dashboard Overview", icon: <Dashboard /> },
-          { key: 'waste', text: "Waste Management", icon: <DeleteOutline /> },
-          { key: 'water', text: "Water Issues", icon: <Opacity /> },
-          { key: 'grievances', text: "Grievances", icon: <ReportProblem /> },
-          { key: 'registrations', text: "Registrations", icon: <People /> },
-          { key: 'logs', text: "Activity Logs", icon: <ReportProblem /> },
-          { key: 'settings', text: "Settings", icon: <Settings /> },
-        ].map((item) => (
-          <ListItem key={item.key} sx={{ "&:hover": { bgcolor: "rgba(0,150,136,0.05)", borderLeft: "4px solid #009688" } }}>
-            <ListItemButton onClick={() => setTab(item.key)} selected={tab === item.key}>
-              <ListItemIcon sx={{ color: "#009688" }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
+  // 🔹 Helper: Get Headers from Session Storage
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+  };
 
-  React.useEffect(() => {
-    // fetch data when tab changes
+  // 🔹 Helper: Handle Unauthorized Access
+  const handleAuthError = (res) => {
+    if (res.status === 401 || res.status === 403) {
+      alert('Session expired or unauthorized. Please login again.');
+      sessionStorage.clear();
+      navigate('/login');
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
     if (tab === 'waste') fetchWastes();
     if (tab === 'water') fetchWaters();
     if (tab === 'grievances') fetchGrievances();
@@ -97,28 +96,21 @@ const AdminDashboard = () => {
     if (tab === 'overview') fetchOverview();
   }, [tab]);
 
-  // Overview state and fetch
-  const [overview, setOverview] = React.useState({ wasteCount: 0, registrationCount: 0, userCount: 0, recentWastes: [], recentRegs: [], recentLogs: [] });
-  const [overviewLoading, setOverviewLoading] = React.useState(false);
+  // --- API CALLS ---
 
   const fetchOverview = async () => {
     try {
       setOverviewLoading(true);
+      const headers = getAuthHeaders();
+      
       const [wRes, rRes, uRes, lRes] = await Promise.all([
-        fetch('http://localhost:3000/api/waste', { headers: getAuthHeaders() }),
-        fetch('http://localhost:3000/api/registrations', { headers: getAuthHeaders() }),
-        fetch('http://localhost:3000/api/users', { headers: getAuthHeaders() }),
-        fetch('http://localhost:3000/api/logs', { headers: getAuthHeaders() }),
+        fetch('http://localhost:3000/api/waste', { headers }),
+        fetch('http://localhost:3000/api/registrations', { headers }),
+        fetch('http://localhost:3000/api/users', { headers }),
+        fetch('http://localhost:3000/api/logs', { headers }),
       ]);
 
-      if (!wRes.ok || !rRes.ok || !uRes.ok || !lRes.ok) {
-        // If unauthorized, inform admin
-        if ([wRes.status, rRes.status, uRes.status, lRes.status].some(s => s === 401 || s === 403)) {
-          alert('Admin access required. Please log in as an admin.');
-          return;
-        }
-        throw new Error('Failed to fetch overview data');
-      }
+      if (handleAuthError(wRes)) return;
 
       const [wData, rData, uData, lData] = await Promise.all([wRes.json(), rRes.json(), uRes.json(), lRes.json()]);
 
@@ -137,179 +129,108 @@ const AdminDashboard = () => {
     }
   };
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-  };
-
   const fetchWastes = async () => {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:3000/api/waste', { headers: getAuthHeaders() });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
-        throw new Error('Failed to fetch wastes');
-      }
+      if (handleAuthError(res)) return;
       const data = await res.json();
       setWastes(data);
-    } catch (err) {
-      console.error('fetch wastes', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  // Water
-  const [waters, setWaters] = React.useState([]);
   const fetchWaters = async () => {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:3000/api/water', { headers: getAuthHeaders() });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
-        throw new Error('Failed to fetch water requests');
-      }
-      const data = await res.json();
-      setWaters(data);
-    } catch (err) {
-      console.error('fetch waters', err);
-    } finally {
-      setLoading(false);
-    }
+      if (handleAuthError(res)) return;
+      setWaters(await res.json());
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const updateWaterStatus = async (id, status) => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/water/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-      if (!res.ok) return alert('Failed to update water request. Admin access required.');
-      fetchWaters();
-    } catch (err) {
-      console.error('update water', err);
-    }
-  };
-
-  const deleteWater = async (id) => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/water/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (!res.ok) return alert('Failed to delete. Admin access required.');
-      fetchWaters();
-    } catch (err) {
-      console.error('delete water', err);
-    }
-  };
-
-  // Grievances
-  const [grievances, setGrievances] = React.useState([]);
   const fetchGrievances = async () => {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:3000/api/grievance', { headers: getAuthHeaders() });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
-        throw new Error('Failed to fetch grievances');
-      }
-      const data = await res.json();
-      setGrievances(data);
-    } catch (err) {
-      console.error('fetch grievances', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateGrievanceStatus = async (id, status) => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/grievance/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-      if (!res.ok) return alert('Failed to update grievance. Admin access required.');
-      fetchGrievances();
-    } catch (err) {
-      console.error('update grievance', err);
-    }
-  };
-
-  const deleteGrievance = async (id) => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/grievance/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (!res.ok) return alert('Failed to delete grievance. Admin access required.');
-      fetchGrievances();
-    } catch (err) {
-      console.error('delete grievance', err);
-    }
+      if (handleAuthError(res)) return;
+      setGrievances(await res.json());
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const fetchRegistrations = async () => {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:3000/api/registrations', { headers: getAuthHeaders() });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
-        throw new Error('Failed to fetch registrations');
-      }
-      const data = await res.json();
-      setRegistrations(data);
-    } catch (err) {
-      console.error('fetch registrations', err);
-    } finally {
-      setLoading(false);
-    }
+      if (handleAuthError(res)) return;
+      setRegistrations(await res.json());
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
       const res = await fetch('http://localhost:3000/api/logs', { headers: getAuthHeaders() });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) return alert('Admin access required. Please log in as an admin.');
-        throw new Error('Failed to fetch logs');
-      }
-      const data = await res.json();
-      setLogs(data);
-    } catch (err) {
-      console.error('fetch logs', err);
-    } finally {
-      setLoading(false);
-    }
+      if (handleAuthError(res)) return;
+      setLogs(await res.json());
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const updateWasteStatus = async (id, status) => {
+  // --- ACTIONS ---
+
+  const updateStatus = async (endpoint, id, status, refresh) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/waste/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-      if (!res.ok) return alert('Failed to update waste. Admin access required.');
-      fetchWastes();
-    } catch (err) {
-      console.error('update waste', err);
-    }
+      await fetch(`http://localhost:3000/api/${endpoint}/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status })
+      });
+      refresh();
+    } catch (err) { console.error(err); }
   };
 
-  const deleteWaste = async (id) => {
+  const deleteItem = async (endpoint, id, refresh) => {
+    if(!window.confirm("Are you sure?")) return;
     try {
-      const res = await fetch(`http://localhost:3000/api/waste/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (!res.ok) return alert('Failed to delete. Admin access required.');
-      fetchWastes();
-    } catch (err) {
-      console.error('delete waste', err);
-    }
+      await fetch(`http://localhost:3000/api/${endpoint}/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      refresh();
+    } catch (err) { console.error(err); }
   };
 
-  const updateRegistrationStatus = async (id, status) => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/registrations/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-      if (!res.ok) return alert('Failed to update registration. Admin access required.');
-      fetchRegistrations();
-    } catch (err) {
-      console.error('update registration', err);
-    }
-  };
-
-  const deleteRegistration = async (id) => {
-    try {
-      const res = await fetch(`http://localhost:3000/api/registrations/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (!res.ok) return alert('Failed to delete registration. Admin access required.');
-      fetchRegistrations();
-    } catch (err) {
-      console.error('delete registration', err);
-    }
-  };
+  const drawer = (
+    <Box sx={{ bgcolor: "#fff", height: "100%" }}>
+      <Typography variant="h5" color="primary" sx={{ p: 2, fontWeight: "bold", textAlign: "center", mt: 2 }}>
+        Admin Panel
+      </Typography>
+      <Divider />
+      <List>
+        {[
+          { key: 'overview', text: "Dashboard Overview", icon: <Dashboard /> },
+          { key: 'waste', text: "Waste Management", icon: <DeleteOutline /> },
+          { key: 'water', text: "Water Issues", icon: <Opacity /> },
+          { key: 'grievances', text: "Grievances", icon: <ReportProblem /> },
+          { key: 'registrations', text: "Registrations", icon: <People /> },
+          { key: 'logs', text: "Activity Logs", icon: <ReportProblem /> },
+        ].map((item) => (
+          <ListItem key={item.key} disablePadding sx={{ display: 'block' }}>
+            <ListItemButton 
+                onClick={() => setTab(item.key)} 
+                selected={tab === item.key}
+                sx={{ 
+                    "&.Mui-selected": { bgcolor: "rgba(0,150,136,0.1)", borderLeft: "4px solid #009688" },
+                    "&:hover": { bgcolor: "rgba(0,150,136,0.05)" }
+                }}
+            >
+              <ListItemIcon sx={{ color: tab === item.key ? "#009688" : "inherit" }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} sx={{ color: tab === item.key ? "#009688" : "inherit" }} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
 
   return (
     <ThemeProvider theme={theme}>
@@ -317,36 +238,10 @@ const AdminDashboard = () => {
       <Navbar />
 
       <Box sx={{ display: "flex" }}>
-        {/* 🔹 AppBar */}
-        {/* <AppBar
-          position="fixed"
-          sx={{
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            ml: { sm: `${drawerWidth}px` },
-            bgcolor: "#009688",
-          }}
-        >
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: "none" } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div">
-              Smart City Admin Dashboard
-            </Typography>
-          </Toolbar>
-        </AppBar> */}
-
+        
         {/* 🔹 Sidebar Drawer */}
-        <Box
-          component="nav"
-          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        >
-          {/* Mobile Drawer */}
+        <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
+          {/* Mobile */}
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -354,24 +249,17 @@ const AdminDashboard = () => {
             ModalProps={{ keepMounted: true }}
             sx={{
               display: { xs: "block", sm: "none" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
+              "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
             }}
           >
             {drawer}
           </Drawer>
-
-          {/* Desktop Drawer */}
+          {/* Desktop */}
           <Drawer
             variant="permanent"
             sx={{
               display: { xs: "none", sm: "block" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
+              "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, top: '64px', height: 'calc(100% - 64px)' },
             }}
             open
           >
@@ -380,36 +268,27 @@ const AdminDashboard = () => {
         </Box>
 
         {/* 🔹 Main Content */}
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 3,
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            mt: 8,
-          }}
-        >
+        <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8 }}>
+          
           {tab === 'overview' && (
             <>
               <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold', mb: 3 }}>Dashboard Overview</Typography>
 
+              {/* ✅ Grid v2 Syntax */}
               <Grid container spacing={3} sx={{ mb: 3 }}>
                 {[
-                  { title: 'Waste Requests', value: overview.wasteCount || wastes.length || 0, color: '#009688', icon: <DeleteOutline /> , link: 'waste'},
-                  { title: 'Registrations', value: overview.registrationCount || registrations.length || 0, color: '#1976d2', icon: <People /> , link: 'registrations'},
-                  { title: 'Registered Users', value: overview.userCount || 0, color: '#8bc34a', icon: <People /> , link: 'users'},
-                  { title: 'Recent Logs', value: overview.recentLogs?.length || logs.length || 0, color: '#ff7043', icon: <ReportProblem />, link: 'logs'},
+                  { title: 'Waste Requests', value: overview.wasteCount, color: '#009688', icon: <DeleteOutline /> , link: 'waste'},
+                  { title: 'Registrations', value: overview.registrationCount, color: '#1976d2', icon: <People /> , link: 'registrations'},
+                  { title: 'Registered Users', value: overview.userCount, color: '#8bc34a', icon: <People /> , link: 'users'},
+                  { title: 'Activity Logs', value: overview.recentLogs?.length, color: '#ff7043', icon: <ReportProblem />, link: 'logs'},
                 ].map((stat, index) => (
-                  <Grid item xs={12} sm={6} md={3} key={index}>
-                    <Paper elevation={4} sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
+                    <Paper elevation={2} sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Avatar sx={{ bgcolor: stat.color, width: 56, height: 56 }}>{stat.icon}</Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>{stat.title}</Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 0.5 }}>{stat.value}</Typography>
-                        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                          <Button size="small" variant="text" onClick={() => setTab(stat.link)}>View</Button>
-                          <Button size="small" variant="outlined" onClick={() => fetchOverview()}>Refresh</Button>
-                        </Stack>
+                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{stat.value}</Typography>
+                        <Button size="small" onClick={() => setTab(stat.link)}>View Details</Button>
                       </Box>
                     </Paper>
                   </Grid>
@@ -417,20 +296,20 @@ const AdminDashboard = () => {
               </Grid>
 
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Paper elevation={3} sx={{ p: 2, borderRadius: 3 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                       <Typography variant="h6">Recent Activity</Typography>
-                      <Button size="small" variant="text" onClick={() => setTab('logs')}>See all</Button>
+                      <Button size="small" onClick={() => setTab('logs')}>See all</Button>
                     </Stack>
-
-                    <Box sx={{ mt: 2 }}>
-                      {overviewLoading ? (
-                        <Typography>Loading...</Typography>
-                      ) : (
-                        (overview.recentLogs && overview.recentLogs.length > 0) ? overview.recentLogs.map(l => (
-                          <Paper key={l._id} sx={{ p: 1, mb: 1 }}>
-                            <Typography variant="body2">[{new Date(l.createdAt).toLocaleString()}] <strong>{l.action}</strong> {l.entityType} - {l.message}</Typography>
+                    <Box>
+                      {overviewLoading ? <Typography>Loading...</Typography> : (
+                        (overview.recentLogs && overview.recentLogs.length > 0) ? overview.recentLogs.map((l, i) => (
+                          <Paper key={i} variant="outlined" sx={{ p: 1, mb: 1, bgcolor: '#fafafa' }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                                <strong>{l.action}</strong>: {l.message} <br/>
+                                <span style={{color: 'gray', fontSize:'0.75rem'}}>{new Date(l.createdAt).toLocaleString()}</span>
+                            </Typography>
                           </Paper>
                         )) : <Typography color="text.secondary">No recent activity</Typography>
                       )}
@@ -438,32 +317,17 @@ const AdminDashboard = () => {
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <Paper elevation={3} sx={{ p: 2, borderRadius: 3 }}>
-                    <Typography variant="h6">Latest Submissions</Typography>
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2">Waste Requests</Typography>
-                      {overviewLoading ? <Typography>Loading...</Typography> : (
-                        (overview.recentWastes && overview.recentWastes.length > 0) ? overview.recentWastes.map(w => (
-                          <Paper key={w._id} sx={{ p: 1, mb: 1 }}>
-                            <Typography variant="body2"><strong>{w.name}</strong> • {w.wasteType} • {w.status || 'pending'}</Typography>
-                            <Typography variant="caption" color="text.secondary">{w.address}</Typography>
-                          </Paper>
-                        )) : <Typography color="text.secondary">No recent waste requests</Typography>
-                      )}
-
-                      <Divider sx={{ my: 2 }} />
-
-                      <Typography variant="subtitle2">Registrations</Typography>
-                      {overviewLoading ? <Typography>Loading...</Typography> : (
-                        (overview.recentRegs && overview.recentRegs.length > 0) ? overview.recentRegs.map(r => (
-                          <Paper key={r._id} sx={{ p: 1, mb: 1 }}>
-                            <Typography variant="body2"><strong>{r.firstName} {r.lastName || ''}</strong> • {r.department}</Typography>
-                            <Typography variant="caption" color="text.secondary">{r.email} • {r.phone}</Typography>
-                          </Paper>
-                        )) : <Typography color="text.secondary">No recent registrations</Typography>
-                      )}
-                    </Box>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Paper elevation={2} sx={{ p: 2, borderRadius: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2 }}>Recent Requests</Typography>
+                    {overviewLoading ? <Typography>Loading...</Typography> : (
+                        overview.recentWastes.length ? overview.recentWastes.map((w, i) => (
+                            <Box key={i} sx={{ mb: 1, pb: 1, borderBottom: '1px solid #eee' }}>
+                                <Typography variant="subtitle2">{w.wasteType}</Typography>
+                                <Typography variant="caption" color="text.secondary">{w.address} • {w.status}</Typography>
+                            </Box>
+                        )) : <Typography color="text.secondary">No recent requests</Typography>
+                    )}
                   </Paper>
                 </Grid>
               </Grid>
@@ -477,15 +341,17 @@ const AdminDashboard = () => {
                 {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {wastes.map(w => (
-                      <Grid item xs={12} md={6} key={w._id}>
-                        <Paper sx={{ p: 2 }}>
+                      <Grid size={{ xs: 12, md: 6 }} key={w._id}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
                           <Typography variant="h6">{w.name}</Typography>
                           <Typography variant="body2" color="text.secondary">{w.address}</Typography>
-                          <Typography variant="caption">{w.wasteType} • {w.status}</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                            {w.wasteType} • {w.status || 'Pending'}
+                          </Typography>
                           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            <Button size="small" onClick={() => updateWasteStatus(w._id, 'scheduled')}>Schedule</Button>
-                            <Button size="small" onClick={() => updateWasteStatus(w._id, 'collected')}>Mark Collected</Button>
-                            <Button size="small" color="error" onClick={() => deleteWaste(w._id)}>Delete</Button>
+                            <Button size="small" variant="contained" onClick={() => updateStatus('waste', w._id, 'scheduled', fetchWastes)}>Schedule</Button>
+                            <Button size="small" variant="outlined" onClick={() => updateStatus('waste', w._id, 'collected', fetchWastes)}>Collected</Button>
+                            <Button size="small" color="error" onClick={() => deleteItem('waste', w._id, fetchWastes)}>Delete</Button>
                           </Stack>
                         </Paper>
                       </Grid>
@@ -503,15 +369,17 @@ const AdminDashboard = () => {
                 {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {waters.map(w => (
-                      <Grid item xs={12} md={6} key={w._id}>
-                        <Paper sx={{ p: 2 }}>
+                      <Grid size={{ xs: 12, md: 6 }} key={w._id}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
                           <Typography variant="h6">{w.name}</Typography>
                           <Typography variant="body2" color="text.secondary">{w.address}</Typography>
-                          <Typography variant="caption">{w.issueType} • {w.status}</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                            {w.issueType} • {w.status || 'Pending'}
+                          </Typography>
                           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            <Button size="small" onClick={() => updateWaterStatus(w._id, 'in-progress')}>In-Progress</Button>
-                            <Button size="small" onClick={() => updateWaterStatus(w._id, 'resolved')}>Resolve</Button>
-                            <Button size="small" color="error" onClick={() => deleteWater(w._id)}>Delete</Button>
+                            <Button size="small" variant="contained" onClick={() => updateStatus('water', w._id, 'in-progress', fetchWaters)}>In-Progress</Button>
+                            <Button size="small" variant="outlined" onClick={() => updateStatus('water', w._id, 'resolved', fetchWaters)}>Resolve</Button>
+                            <Button size="small" color="error" onClick={() => deleteItem('water', w._id, fetchWaters)}>Delete</Button>
                           </Stack>
                         </Paper>
                       </Grid>
@@ -522,35 +390,31 @@ const AdminDashboard = () => {
             </>
           )}
 
-
-
           {tab === 'grievances' && (
             <>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>Grievances</Typography>
               <Paper sx={{ p: 2, mb: 3 }}>
-                {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {grievances.map(g => (
-                      <Grid item xs={12} md={6} key={g._id}>
-                        <Paper sx={{ p: 2 }}>
+                      <Grid size={{ xs: 12, md: 6 }} key={g._id}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
                           <Typography variant="h6">{g.subject}</Typography>
-                          <Typography variant="body2" color="text.secondary">{g.description}</Typography>
-                          <Typography variant="caption">Submitted by: {g.name} • {new Date(g.createdAt).toLocaleString()}</Typography>
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            <Select size="small" value={g.status || 'open'} onChange={(e) => updateGrievanceStatus(g._id, e.target.value)}>
+                          <Typography variant="body2" sx={{ mt: 1 }}>{g.description}</Typography>
+                          <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
+                             By: {g.name} • {new Date(g.createdAt).toLocaleDateString()}
+                          </Typography>
+                          <Stack direction="row" spacing={1} sx={{ mt: 2 }} alignItems="center">
+                            <Select size="small" value={g.status || 'open'} onChange={(e) => updateStatus('grievance', g._id, e.target.value, fetchGrievances)}>
                               <MenuItem value="open">Open</MenuItem>
                               <MenuItem value="in-progress">In-Progress</MenuItem>
                               <MenuItem value="resolved">Resolved</MenuItem>
-                              <MenuItem value="closed">Closed</MenuItem>
                             </Select>
-                            <Button color="error" onClick={() => deleteGrievance(g._id)}>Delete</Button>
+                            <Button size="small" color="error" onClick={() => deleteItem('grievance', g._id, fetchGrievances)}>Delete</Button>
                           </Stack>
                         </Paper>
                       </Grid>
                     ))}
-                    {grievances.length === 0 && <Typography sx={{ p: 2 }}>No grievances yet.</Typography>}
                   </Grid>
-                )}
               </Paper>
             </>
           )}
@@ -559,48 +423,48 @@ const AdminDashboard = () => {
             <>
               <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>Registrations</Typography>
               <Paper sx={{ p: 2, mb: 3 }}>
-                {loading ? <Typography>Loading...</Typography> : (
                   <Grid container spacing={2}>
                     {registrations.map(r => (
-                      <Grid item xs={12} md={6} key={r._id}>
-                        <Paper sx={{ p: 2 }}>
+                      <Grid size={{ xs: 12, md: 6 }} key={r._id}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
                           <Typography variant="h6">{r.firstName} {r.lastName}</Typography>
                           <Typography variant="body2" color="text.secondary">{r.email} • {r.phone}</Typography>
-                          <Typography variant="body2" sx={{ mt: 1 }}>Department: {r.department} {r.subOption ? `• ${r.subOption}` : ''}</Typography>
-                          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                            <Select size="small" value={r.status || 'pending'} onChange={(e) => updateRegistrationStatus(r._id, e.target.value)}>
+                          <Typography variant="subtitle2" sx={{ mt: 1, color: 'primary.main' }}>
+                            Dept: {r.department} {r.subOption && `(${r.subOption})`}
+                          </Typography>
+                          <Stack direction="row" spacing={1} sx={{ mt: 2 }} alignItems="center">
+                            <Select size="small" value={r.status || 'pending'} onChange={(e) => updateStatus('registrations', r._id, e.target.value, fetchRegistrations)}>
                               <MenuItem value="pending">Pending</MenuItem>
-                              <MenuItem value="approved">Approved</MenuItem>
-                              <MenuItem value="rejected">Rejected</MenuItem>
+                              <MenuItem value="approved">Approve</MenuItem>
+                              <MenuItem value="rejected">Reject</MenuItem>
                             </Select>
-                            <Button color="error" onClick={() => deleteRegistration(r._id)}>Delete</Button>
+                            <Button size="small" color="error" onClick={() => deleteItem('registrations', r._id, fetchRegistrations)}>Delete</Button>
                           </Stack>
                         </Paper>
                       </Grid>
                     ))}
-                    {registrations.length === 0 && <Typography sx={{ p: 2 }}>No registrations yet.</Typography>}
                   </Grid>
-                )}
               </Paper>
             </>
           )}
 
           {tab === 'logs' && (
             <>
-              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>Activity Logs</Typography>
+              <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold', mb: 2 }}>System Logs</Typography>
               <Paper sx={{ p: 2 }}>
-                {loading ? <Typography>Loading...</Typography> : (
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1}>
                     {logs.map(l => (
-                      <Grid item xs={12} key={l._id}>
-                        <Paper sx={{ p: 2 }}>
-                          <Typography variant="body2">[{new Date(l.createdAt).toLocaleString()}] <strong>{l.action}</strong> {l.entityType} - {l.message}</Typography>
+                      <Grid size={{ xs: 12 }} key={l._id}>
+                        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#f5f5f5' }}>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            <span style={{ color: '#009688' }}>[{new Date(l.createdAt).toLocaleString()}]</span> 
+                            <strong> {l.action}</strong>: {l.message} 
+                            <span style={{ color: '#ff7043' }}> ({l.entityType})</span>
+                          </Typography>
                         </Paper>
                       </Grid>
                     ))}
-                    {logs.length === 0 && <Typography sx={{ p: 2 }}>No logs yet.</Typography>}
                   </Grid>
-                )}
               </Paper>
             </>
           )}

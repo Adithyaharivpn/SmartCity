@@ -17,7 +17,7 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
-// 🌈 Aesthetic Theme to match login
+// 🌈 Aesthetic Theme
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -52,6 +52,7 @@ const Signup = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
 
     if (!input.fullName || input.fullName.length < 2) return setErrorMessage('Full name is required');
     if (!input.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return setErrorMessage('Valid email is required');
@@ -68,12 +69,23 @@ const Signup = () => {
         city: input.city,
       })
       .then((response) => {
-        const { token, user, message } = response.data;
-        if (token) localStorage.setItem('token', token);
-        if (user) localStorage.setItem('user', JSON.stringify(user));
-        setSuccessMessage(message || 'Signup successful!');
+        // --- LOGIC CORRECTION ---
+        // 1. Handle Flat Data
+        const data = response.data;
+        const user = data; 
+        const token = data.token; 
+
+        // 2. FIX: Save to sessionStorage (so Dashboard can find it immediately)
+        if (token) sessionStorage.setItem('token', token);
+        if (user) sessionStorage.setItem('user', JSON.stringify(user));
+
+        setSuccessMessage('Signup successful!');
         setErrorMessage('');
-        setTimeout(() => navigate(user?.role === 'admin' ? '/admin' : '/user'), 700);
+        
+        setTimeout(() => {
+          // Check role directly from the flat data object
+          navigate(user?.role === 'admin' ? '/admin' : '/user');
+        }, 700);
       })
       .catch((error) => {
         console.error('Signup error:', error, error?.response?.data);
@@ -179,4 +191,3 @@ const Signup = () => {
 };
 
 export default Signup;
-
